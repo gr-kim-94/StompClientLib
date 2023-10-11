@@ -63,6 +63,8 @@ public enum StompAckMode {
 @objc
 public protocol StompClientLibDelegate: class {
     func stompClient(client: StompClientLib!, didReceiveMessageWithJSONBody jsonBody: AnyObject?, akaStringBody stringBody: String?, withHeader header:[String:String]?, withDestination destination: String)
+    func stompClient(client: StompClientLib!, didSendPingWithError error: Error)
+    func stompClient(client: StompClientLib!, didReceivePongWithPayload payload: Data)
     
     func stompClientDidDisconnect(client: StompClientLib!)
     func stompClientDidConnect(client: StompClientLib!)
@@ -80,7 +82,9 @@ public class StompClientLib: NSObject, SRWebSocketDelegate {
     public var connection: Bool = false
     public var certificateCheckEnabled = true
     private var urlRequest: NSURLRequest?
-    
+
+    public var isSendPing : Bool = false
+    public var sendPingTimer : Int = 3
     private var reconnectTimer : Timer?
     
     public func sendJSONForDict(dict: AnyObject, toDestination destination: String) {
@@ -146,6 +150,25 @@ public class StompClientLib: NSObject, SRWebSocketDelegate {
             self.sendFrame(command: StompCommands.commandConnect, header: connectionHeaders, body: nil)
         } else {
             self.openSocket()
+        }
+    }
+
+    /*
+     Main Connection Send Ping
+     */
+    private func sendPing(_ data: Data? = nil) {
+        guard isSendPing, socket?.readyState == .OPEN else { return }
+        
+        DispatchQueue.main.asyncAfter(deadline: .now() + DispatchTimeInterval.seconds(sendPingTimer)) {
+            do {
+                try self.socket?.sendPing(data)
+            } catch {
+                if let delegate = self.delegate {
+                    DispatchQueue.main.async(execute: {
+                        delegate.stompClient(client: self, didSendPingWithError: error)
+                    })
+                }
+            }
         }
     }
     
@@ -222,6 +245,14 @@ public class StompClientLib: NSObject, SRWebSocketDelegate {
     
     public func webSocket(_ webSocket: SRWebSocket!, didReceivePong pongPayload: Data!) {
         print("didReceivePong")
+        
+        if let delegate = delegate {
+            DispatchQueue.main.async(execute: {
+                delegate.stompClient(client: self, didReceivePongWithPayload: pongPayload)
+            })
+        }
+        
+        self.sendPing()
     }
     
     private func sendFrame(command: String?, header: [String: String]?, body: AnyObject?) {
@@ -301,6 +332,8 @@ public class StompClientLib: NSObject, SRWebSocketDelegate {
                     delegate.stompClientDidConnect(client: self)
                 })
             }
+
+            self.sendPing()
         } else if command == StompCommands.responseFrameMessage {   // Message comes to this part
             // Response
             if let delegate = delegate {
