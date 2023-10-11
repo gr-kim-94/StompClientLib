@@ -100,6 +100,11 @@ socketClient.openSocketWithURLRequest(request: NSURLRequest(url: url as URL) , d
 
 After you are connected, there are some delegate methods that you need to implement.
 
+```swift
+socketClient.isSendPing = true
+```
+The default value for isSendPing is false and sendPingTimer is 3 seconds.
+
 # StompClientLibDelegate
 
 ## stompClientDidConnect
@@ -118,6 +123,22 @@ socketClient.subscribe(destination: topic)
 ```swift
 func stompClientDidDisconnect(client: StompClientLib!) {
 print("Socket is Disconnected")
+}
+```
+
+## didSendPingWithError
+
+```swift
+func stompClient(client: StompClientLib!, didSendPingWithError error: Error) {
+print("WebSocket is Send Ping Error! \(String(describing: error))")
+}
+```
+
+## didReceivePongWithPayload
+
+```swift
+func stompClient(client: StompClientLib!, didReceivePongWithPayload payload: Data) {
+print("WebSocket is Receive Pong! \(payload)")
 }
 ```
 
