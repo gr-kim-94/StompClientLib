@@ -103,7 +103,7 @@ After you are connected, there are some delegate methods that you need to implem
 ```swift
 socketClient.isSendPing = true
 ```
-The default value for isSendPing is false and sendPingTimer is 3 seconds.
+The default value for isSendPing is false and sendPingTimeInterval is 10 seconds.
 
 # StompClientLibDelegate
 
